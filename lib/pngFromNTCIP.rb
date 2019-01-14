@@ -97,7 +97,7 @@ class ImageToPng
                 end
                 (0...@scale).each do |xs|
                   (0...@scale).each do |ys|
-                    @png[nX+xs,nY+ys] = ChunkyPNG::Color.rgba(nRed, nGreen, nBlue, 128)
+                    @png[nX+xs,nY+ys] = ChunkyPNG::Color.rgba(nRed, nGreen, nBlue, 255)
                   end
                 end
                 nX = nX+@scale
