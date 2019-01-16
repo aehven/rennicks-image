@@ -382,7 +382,8 @@ end
    ## produce .png image files
    ## scaled x 3
    #####
-pfn = PNGFromNTCIP.new(signWidth, signHeight, bitsPerPixel, 3, bitmapObjectString, messageName)
+#pfn = PNGFromNTCIP.new(signWidth, signHeight, bitsPerPixel, 3, bitmapObjectString, messageName)
+pfn = SinglePNGFromNTCIP.new(signWidth, signHeight, bitsPerPixel, 3, bitmapObjectString, messageName)
 pfn.toPNG
 end
 end
