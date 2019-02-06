@@ -124,6 +124,55 @@ class ImageToPng
     @png.save(@outName.to_s+'.png', :interlace => true)
    end
 end
+class PreviewImageToPng
+   def initialize(w, h, sc, bitmap, outName)
+      @width = w
+      @height = h
+      @scale = sc
+      @bitmap = bitmap
+      @outName = outName
+   end
+   def to_png
+      @png = ChunkyPNG::Image.new(@width*@scale, @height*@scale, ChunkyPNG::Color::TRANSPARENT)
+      nX=0
+      nY=0
+      #@array.each do |bitmap|
+         @bitmap.each do |row|
+            nX = 0
+            row.each do |pixel|
+                nRed = 0
+                nGreen = 0
+                nBlue = 0
+                case pixel
+                  when 9
+                   nRed = RGB_AMBER_RED
+                   nGreen = RGB_AMBER_GREEN
+                   nBlue = RGB_AMBER_BLUE
+                  when 1
+                   nRed = RGB_RED_RED
+                   nGreen = RGB_RED_GREEN
+                   nBlue = RGB_RED_BLUE
+                  when 7
+                   nRed = RGB_WHITE_RED
+                   nGreen = RGB_WHITE_GREEN
+                   nBlue = RGB_WHITE_BLUE
+                end
+                (0...@scale).each do |xs|
+                  (0...@scale).each do |ys|
+                    @png[nX+xs,nY+ys] = ChunkyPNG::Color.rgba(nRed, nGreen, nBlue, 255)
+                  end
+                end
+                nX = nX+@scale
+                if nX >= @width*@scale
+                 nX = 0 
+                end
+            end
+            nY = nY + @scale
+         end
+      #end
+    @png.save(@outName.to_s+'.png', :interlace => true)
+   end
+end
 class PNGFromNTCIP
    def initialize(w, h, bw, s, bmJson, outName)
     @signWidth = w
@@ -154,6 +203,30 @@ class PNGFromNTCIP
       i2p.to_png
       nPage = nPage + 1
     end
+   end
+end
+#######
+# generate a PNG file 
+# from  a preview bitmap
+#####
+class PNGFromPreview
+   def initialize(s, bmJson, outName)
+    @scale = s
+    @outName = outName
+    @parsedBitmaps  = JSON.parse(bmJson)
+    @width = @parsedBitmaps["width"]
+    @height = @parsedBitmaps["height"]
+   end
+   def toPNG
+    graphicType = @parsedBitmaps["graphicType"]
+    bitmapArray = @parsedBitmaps["bits"]
+    bppEnum =  ENUM_MonochromePixelWidth::TWO_BIT
+
+    ######
+    # create a new .png file for each page
+    #####
+    i2p = PreviewImageToPng.new(@width, @height, @scale, bitmapArray, @outName)
+    i2p.to_png
    end
 end
 
