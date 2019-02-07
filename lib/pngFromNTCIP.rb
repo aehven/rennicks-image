@@ -194,7 +194,6 @@ class PNGFromNTCIP
     @parsedBitmaps  = JSON.parse(bmJson)
    end
    def toPNG
-    graphicType = @parsedBitmaps["graphicType"]
     bitmapArrays = @parsedBitmaps["bitmaps"]
     nPage = 1
 
@@ -229,7 +228,6 @@ class PNGFromPreview
     @height = @parsedBitmaps["height"]
    end
    def toPNG
-    graphicType = @parsedBitmaps["graphicType"]
     bitmapArray = @parsedBitmaps["bits"]
     bppEnum =  ENUM_MonochromePixelWidth::TWO_BIT
 
@@ -446,7 +444,6 @@ class SinglePNGFromNTCIP
     # locate the bitmaps array
     # one bitmap for each page
     #####
-    graphicType = @parsedBitmaps["graphicType"]
     bitmapArrays = @parsedBitmaps["bitmaps"]
 
     #####
