@@ -13,6 +13,13 @@ RGB_WHITE_BLUE    =     255
 RGB_RED_RED       =     255
 RGB_RED_GREEN     =     66
 RGB_RED_BLUE      =     0
+AMSIG_AMBER_PIXEL = 1
+AMSIG_RED_PIXEL = 2
+AMSIG_WHITE_PIXEL = 3
+CLASSIC_COLOR_BLACK = 0
+CLASSIC_COLOR_RED = 1
+CLASSIC_COLOR_WHITE = 7
+CLASSIC_COLOR_AMBER = 9
 class ImageToPng
    def initialize(w, h, bw, sc, array, outName)
       @width = w
@@ -41,39 +48,27 @@ class ImageToPng
          when ENUM_MonochromePixelWidth::ONE_BIT
             nX=0
             nY=0
-            nBits = (pageWidth)*pageWidth
+            nBits = pageHeight*pageWidth
             nBytes = nBits/8
-            nBitCounter = 0
             for nByte in 0...nBytes do
               nBitTest = 0x80
               (0...8).step(1) do |nBits|
-                nValue = @array[nByte]&nBitTest
-                nBitTest = nBitTest >> 1
-                nValue  = nValue >> (7-nBits)
                 nRed = 0
                 nGreen = 0
                 nBlue = 0
-                case nValue
-                  when 1
+                if 0 != @array[nByte]&nBitTest
                    nRed = RGB_AMBER_RED
                    nGreen = RGB_AMBER_GREEN
                    nBlue = RGB_AMBER_BLUE
-                  when 2
-                   nRed = RGB_RED_RED
-                   nGreen = RGB_RED_GREEN
-                   nBlue = RGB_RED_BLUE
-                  when 3
-                   nRed = RGB_WHITE_RED
-                   nGreen = RGB_WHITE_GREEN
-                   nBlue = RGB_WHITE_BLUE
                 end
+                nBitTest = nBitTest >> 1
                 (0...@scale).each do |xs|
                   (0...@scale).each do |ys|
                     @png[xOffset+nX+xs,yOffset+nY+ys] = ChunkyPNG::Color.rgba(nRed, nGreen, nBlue, 255)
                   end
                 end
                 nX = nX+@scale
-                if nX >= @width*@scale
+                if nX >= pageWidth*@scale
                  nX = 0
                  nY = nY + @scale
                 end
@@ -84,7 +79,6 @@ class ImageToPng
             nY=0
             nBits = pageHeight*pageWidth
             nBytes = nBits/4
-            nBitCounter = 0
             for nByte in 0...nBytes do
               nBitTest = 0xC0
               (0...8).step(2) do |nBits|
@@ -95,18 +89,24 @@ class ImageToPng
                 nGreen = 0
                 nBlue = 0
                 case nValue
-                  when 1
+                  when AMSIG_AMBER_PIXEL
+
                    nRed = RGB_AMBER_RED
                    nGreen = RGB_AMBER_GREEN
                    nBlue = RGB_AMBER_BLUE
-                  when 2
+
+                  when AMSIG_RED_PIXEL
+
                    nRed = RGB_RED_RED
                    nGreen = RGB_RED_GREEN
                    nBlue = RGB_RED_BLUE
-                  when 3
+
+                  when AMSIG_WHITE_PIXEL
+
                    nRed = RGB_WHITE_RED
                    nGreen = RGB_WHITE_GREEN
                    nBlue = RGB_WHITE_BLUE
+
                 end
                 (0...@scale).each do |xs|
                   (0...@scale).each do |ys|
@@ -156,18 +156,24 @@ class PreviewImageToPng
              nGreen = 0
              nBlue = 0
              case pixel
-               when 9
+               when CLASSIC_COLOR_AMBER
+
                 nRed = RGB_AMBER_RED
                 nGreen = RGB_AMBER_GREEN
                 nBlue = RGB_AMBER_BLUE
-               when 1
+
+               when CLASSIC_COLOR_RED
+
                 nRed = RGB_RED_RED
                 nGreen = RGB_RED_GREEN
                 nBlue = RGB_RED_BLUE
-               when 7
+
+               when CLASSIC_COLOR_WHITE
+
                 nRed = RGB_WHITE_RED
                 nGreen = RGB_WHITE_GREEN
                 nBlue = RGB_WHITE_BLUE
+
              end
              (0...@scale).each do |xs|
                (0...@scale).each do |ys|
@@ -508,5 +514,139 @@ class SinglePNGFromPreview
       @i2p.to_png(@png, @signWidth, @signHeight, bm, @panelDefs.bmPositions[nPageIndex][0], @panelDefs.bmPositions[nPageIndex][1])
       nPageIndex = nPageIndex + 1
     end
+   end
+end
+#####
+## generate NTCIP bitmap from text only page
+## this class actually looks into the exported message page
+#####
+FC_DELIM_START = "\u00AB".encode('utf-8')
+FC_DELIM_END = "\u00BB".encode('utf-8')
+
+#########################################################################
+
+class NTCIPFromTextPage
+   def initialize(pageWidth, pageHeight, bitsPerPixel, thePage, fontList, fieldCodeList)
+      @pageWidth = pageWidth
+      @pageHeight = pageHeight
+      @thePage = thePage
+      @bitsPerPixel = bitsPerPixel
+      @fontList = fontList
+      @fieldCodeList = fieldCodeList
+      @bitmap = []
+      nBytes = (@bitsPerPixel*pageWidth*pageHeight)/8
+      (0...nBytes).each do |b|
+         @bitmap << 0
+      end
+   end
+   def setBit(x, y, color)
+      case @bitsPerPixel
+       when 1
+        byteIndex = x
+        byteIndex += (y*@pageWidth)
+        bitIndex = byteIndex
+        byteIndex /= 8
+        bitIndex = bitIndex - (byteIndex*8)
+        if 0 < byteIndex
+          if @bitmap.length > byteIndex
+          @bitmap[byteIndex] |= 1<<(7-bitIndex)
+          #puts "1-sb "+x.to_s+" "+y.to_s+" byteIndex "+byteIndex.to_s+" bitIndex "+bitIndex.to_s+" bm "+@bitmap[byteIndex].to_s(16)
+          end
+       end
+       when 2
+        byteIndex = (x*@bitsPerPixel)
+        byteIndex += (y*@pageWidth*@bitsPerPixel)
+        bitIndex = byteIndex
+        byteIndex /= 8
+        bitIndex = bitIndex - (byteIndex*8)
+        if 0 < byteIndex
+          if @bitmap.length > byteIndex
+          bitsToSet = 0
+          case color
+            when CLASSIC_COLOR_AMBER
+
+              bitsToSet = AMSIG_AMBER_PIXEL
+
+            when CLASSIC_COLOR_RED
+
+              bitsToSet = AMSIG_RED_PIXEL
+
+            when CLASSIC_COLOR_WHITE
+
+              bitsToSet = AMSIG_WHITE_PIXEL
+
+            end
+          end
+          @bitmap[byteIndex] |= bitsToSet<<(6-bitIndex)
+          #puts "2-sb "+x.to_s+" "+y.to_s+" byteIndex "+byteIndex.to_s+" bitIndex "+bitIndex.to_s+" bm "+@bitmap[byteIndex].to_s(16)
+          end
+       end
+   end
+   def locateFont(fontName)
+      theFont = nil
+      @fontList.each do |font|
+       if font["name"] == fontName
+         theFont = font
+       end
+      end
+      theFont
+   end
+   def locateFontCharacter(theFont, c)
+      theChar = nil
+      theFont["characters"].each do |char|
+        if c == char["encoding"]
+         theChar = char
+        end
+      end
+      theChar
+   end
+   def toBitmap
+      #####
+      ## for each of the 4 lines of text in this page
+      ##
+      ## grab the text string
+      ##
+      ## substitute any field codes
+      ##
+      ## locate the font
+      ##
+      ## calculate the starting location
+      ##
+      ## draw each character
+      #####
+      graphicObjectExport = @thePage["graphicObjectExport"]
+      graphicObjectExport.each do |gObject|
+      color = gObject["color"]
+         xStart = gObject["xStart"]
+         yStart = gObject["yStart"]
+         text = gObject["text"]
+         @fieldCodeList.list.each do |fc|
+            text = text.gsub( FC_DELIM_START+fc.name+FC_DELIM_END, fc.value)
+         end
+         fontName = gObject["fontName"]
+         theFont = locateFont(fontName)
+         charSpacing = theFont["charspacing"]
+         text.split("").each do |c|
+            #####
+            # get the font bits for this character
+            # set each bit into the bitmap
+            ######
+            charBM = locateFontCharacter(theFont, c.ord)
+            charWidth = charBM["width"]
+            charHeight = charBM["height"]
+            charBits = charBM["bitmap"]
+            (charHeight-1).downto(0) do |y|
+              bitTester = 0x80
+              (0...charWidth).each do |x|
+                if 0 != (charBits[y] & bitTester)
+                  setBit(xStart+x, yStart+y, color)
+                end
+               bitTester >>= 1
+              end
+            end
+            xStart = xStart+charWidth+charSpacing
+         end
+      end
+   @bitmap
    end
 end
